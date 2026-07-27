@@ -18,15 +18,23 @@ Everything here runs on free tiers. **Initial cost: $0.**
 
 ## Shelf visibility (private / shareable / public)
 
-Open **Settings** (gear icon) on your shelf:
+Visibility is **per shelf** (wishlist), not on your whole account.
 
-| Mode | Who can see it | How |
+1. Open **Settings → Shelves** to create shelves and set each one to Private, Shareable, or Public.
+2. New shelves default to today’s date as the name — rename anytime.
+3. The **+** button opens a URL field. Tap **View item** to fill title, price, quantity, pick a **Shelf**, and set item toggles (Most wanted / Private / Open to secondhand).
+
+| Shelf mode | Who can see it | How |
 | --- | --- | --- |
-| **Private** | Only you | Default. No links work. |
-| **Shareable** | Anyone with your secret link | Copy `/s/<token>`. Not listed publicly. |
-| **Public** | Everyone | Listed in `/registry` and at `/u/<username>`. Requires a username. |
+| **Private** | Only you | Default |
+| **Shareable** | Anyone with the secret link | `/s/<token>` |
+| **Public** | Everyone | Listed in `/registry` and `/shelf/<id>` |
 
-Shared views are read-only. Personal notes stay private; visitors see cooling items, savings stats, and recent let-gos.
+Item **Private** hides that item from shared/public views even on a shared shelf. Personal notes stay private.
+
+**Already have a database?** Run these in order in the Supabase SQL Editor if you haven’t:
+1. `supabase/migrations/002_shelf_visibility.sql` (profiles)
+2. `supabase/migrations/003_multi_shelves.sql` (shelves + wishlist fields)
 
 ## 2. Run it locally — ~3 min
 

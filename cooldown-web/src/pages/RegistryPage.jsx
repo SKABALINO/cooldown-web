@@ -21,7 +21,7 @@ export default function RegistryPage() {
         console.error(e);
         if (alive) {
           setShelves([]);
-          setError("Couldn’t load the registry. Make sure the shelf-visibility migration has been run in Supabase.");
+          setError("Couldn’t load the registry. Run the multi-shelf migration in Supabase first.");
         }
       }
     })();
@@ -31,7 +31,7 @@ export default function RegistryPage() {
   const filtered = (shelves || []).filter((s) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
-    return [s.username, s.displayName, s.bio].join(" ").toLowerCase().includes(q);
+    return [s.shelfName, s.username, s.displayName, s.bio].join(" ").toLowerCase().includes(q);
   });
 
   return (
@@ -44,7 +44,7 @@ export default function RegistryPage() {
             <h1 className="page-title" style={{ fontSize: 28 }}>Registry</h1>
           </div>
           <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 16px", lineHeight: 1.5 }}>
-            Browse public Cooldown shelves. See what others are waiting on — and how much they’ve saved by letting go.
+            Browse public wishlists. Each shelf has its own visibility — only shelves marked public show up here.
           </p>
 
           <div style={{ position: "relative", marginBottom: 14 }}>
@@ -54,7 +54,7 @@ export default function RegistryPage() {
               style={{ paddingLeft: 36 }}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name or username"
+              placeholder="Search shelves or people"
             />
           </div>
 
@@ -72,23 +72,25 @@ export default function RegistryPage() {
               </div>
               <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.45 }}>
                 {shelves.length === 0
-                  ? "Be the first — open Settings on your shelf and set visibility to Public."
+                  ? "Create a shelf and set its visibility to Public to appear here."
                   : "Try a different search."}
               </p>
               <Link to="/" className="btn-primary" style={{ display: "inline-block", width: "auto", padding: "12px 18px", textDecoration: "none" }}>
-                Go to your shelf
+                Go to your shelves
               </Link>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {filtered.map((s) => (
-                <Link key={s.username} to={`/u/${s.username}`} className="registry-card">
+                <Link key={s.shelfId} to={`/shelf/${s.shelfId}`} className="registry-card">
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 800, fontFamily: "var(--disp)", fontSize: 18, letterSpacing: "-.02em" }}>
-                        {s.displayName}
+                        {s.shelfName}
                       </div>
-                      <div style={{ fontSize: 12.5, color: "var(--jade)", fontWeight: 700, marginTop: 2 }}>@{s.username}</div>
+                      <div style={{ fontSize: 12.5, color: "var(--jade)", fontWeight: 700, marginTop: 2 }}>
+                        {s.displayName}{s.username ? ` · @${s.username}` : ""}
+                      </div>
                       {s.bio && (
                         <p style={{ fontSize: 13, color: "var(--muted)", margin: "8px 0 0", lineHeight: 1.4 }}>
                           {s.bio}
@@ -97,13 +99,13 @@ export default function RegistryPage() {
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: 20, color: "var(--jade-ink)" }}>
-                        {money(s.savedAmount)}
+                        {money(s.totalValue)}
                       </div>
-                      <div style={{ fontSize: 11.5, color: "var(--muted)", fontWeight: 600 }}>saved</div>
+                      <div style={{ fontSize: 11.5, color: "var(--muted)", fontWeight: 600 }}>on shelf</div>
                     </div>
                   </div>
                   <div style={{ marginTop: 12, fontSize: 12.5, color: "var(--muted)", fontWeight: 600 }}>
-                    {s.coolingCount} cooling on the shelf
+                    {s.itemCount} item{s.itemCount === 1 ? "" : "s"}
                   </div>
                 </Link>
               ))}

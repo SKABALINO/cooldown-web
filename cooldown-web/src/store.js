@@ -42,8 +42,55 @@ export async function insertWant(w) {
     cool_until: new Date(now + (w.days || 7) * DAY).toISOString(),
     status: "cooling",
   };
-  // user_id is filled by the column default (auth.uid()).
   const { data, error } = await supabase.from("wants").insert(row).select().single();
+  if (error) throw error;
+  return mapRow(data);
+}
+
+export async function updateWant(id, fields) {
+  const row = {};
+  if (fields.name !== undefined) row.name = fields.name;
+  if (fields.price !== undefined) row.price = fields.price;
+  if (fields.category !== undefined) row.category = fields.category;
+  if (fields.note !== undefined) row.note = fields.note;
+  if (fields.link !== undefined) row.link = fields.link;
+  if (fields.image !== undefined) row.image = fields.image;
+  if (fields.days !== undefined) {
+    // Rebase cool_until from original added_at when possible; fallback to now.
+    const { data: current, error: readErr } = await supabase
+      .from("wants")
+      .select("added_at")
+      .eq("id", id)
+      .single();
+    if (readErr) throw readErr;
+    const base = toMs(current.added_at) || Date.now();
+    row.cool_until = new Date(base + fields.days * DAY).toISOString();
+    row.status = "cooling";
+    row.decided_at = null;
+  }
+  const { data, error } = await supabase.from("wants").update(row).eq("id", id).select().single();
+  if (error) throw error;
+  return mapRow(data);
+}
+
+export async function extendCool(id, extraDays) {
+  const { data: current, error: readErr } = await supabase
+    .from("wants")
+    .select("cool_until")
+    .eq("id", id)
+    .single();
+  if (readErr) throw readErr;
+  const base = Math.max(Date.now(), toMs(current.cool_until) || Date.now());
+  const { data, error } = await supabase
+    .from("wants")
+    .update({
+      cool_until: new Date(base + extraDays * DAY).toISOString(),
+      status: "cooling",
+      decided_at: null,
+    })
+    .eq("id", id)
+    .select()
+    .single();
   if (error) throw error;
   return mapRow(data);
 }
@@ -52,6 +99,22 @@ export async function updateStatus(id, status) {
   const { data, error } = await supabase
     .from("wants")
     .update({ status, decided_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapRow(data);
+}
+
+/** Put a decided item back on the shelf, ready to decide again. */
+export async function undoDecision(id) {
+  const { data, error } = await supabase
+    .from("wants")
+    .update({
+      status: "cooling",
+      decided_at: null,
+      cool_until: new Date().toISOString(),
+    })
     .eq("id", id)
     .select()
     .single();

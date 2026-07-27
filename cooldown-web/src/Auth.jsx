@@ -38,7 +38,7 @@ export default function Auth() {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="auth-brand">
-          <span className="auth-mark"><Snowflake size={20} strokeWidth={2.4} /></span>
+          <span className="auth-mark"><Snowflake size={22} strokeWidth={2.4} /></span>
           <div>
             <div className="auth-name">Cooldown</div>
             <div className="auth-sub">Wait first. Buy later, if ever.</div>

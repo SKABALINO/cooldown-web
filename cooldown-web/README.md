@@ -46,9 +46,9 @@ Netlify works the same way if you prefer it.
 
 The extension and this website share the same item format. To make them read/write the **same** shelf, point the extension at this same Supabase project (add a sign-in to the extension popup and swap its local storage for Supabase calls). Until then, the extension's Export → website Import still moves data across by hand.
 
-## Make it feel like a phone app (optional)
+## Install as an app (PWA)
 
-Because it's a website, you can add a web app manifest + service worker to make it an installable PWA — it'll go to your home screen and open full-screen like a native app, no app store needed. Ask and I'll wire that up.
+The site ships with a web app manifest + service worker. On mobile (and many desktop browsers), use **Add to Home Screen / Install** to open Cooldown full-screen like a native app.
 
 ## Notes
 

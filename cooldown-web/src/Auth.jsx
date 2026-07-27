@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Snowflake } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -48,7 +49,7 @@ export default function Auth() {
         <h1 className="auth-h">{mode === "signup" ? "Create your account" : "Welcome back"}</h1>
         <p className="auth-p">
           {mode === "signup"
-            ? "Your shelf syncs across the web app and the browser extension."
+            ? "Your shelf syncs across devices — keep it private, share a link, or go public."
             : "Sign in to reach your shelf from anywhere."}
         </p>
 
@@ -70,6 +71,10 @@ export default function Auth() {
         <button className="auth-toggle" onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setMsg(""); }}>
           {mode === "signup" ? "Already have an account? Sign in" : "New here? Create an account"}
         </button>
+
+        <Link to="/registry" className="auth-toggle" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
+          Browse public shelves
+        </Link>
       </div>
     </div>
   );

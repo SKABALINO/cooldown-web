@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import {
   Home, Layers, BarChart3, Plus, Check, X, Target,
   Clock, Trash2, Pencil, Snowflake, Flame, ArrowRight, ExternalLink, LogOut,
-  History, Undo2, TimerReset, Image as ImageIcon, Search,
+  History, Undo2, TimerReset, Image as ImageIcon, Search, Settings2, Compass,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import * as store from "./store";
 import Auth from "./Auth.jsx";
+import SettingsSheet from "./SettingsSheet.jsx";
+import RegistryPage from "./pages/RegistryPage.jsx";
+import { SharedShelfByToken, SharedShelfByUsername } from "./pages/SharedShelfPage.jsx";
 
 const DAY = 86400000;
 
@@ -55,8 +59,21 @@ const EXTEND_OPTS = [
   { label: "+1 week", days: 7 },
 ];
 
-// ================= AUTH GATE =================
+// ================= ROUTER =================
 export default function AppRoot() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/registry" element={<RegistryPage />} />
+        <Route path="/u/:username" element={<SharedShelfByUsername />} />
+        <Route path="/s/:token" element={<SharedShelfByToken />} />
+        <Route path="/*" element={<AppHome />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function AppHome() {
   const [session, setSession] = useState(undefined);
 
   useEffect(() => {
@@ -74,12 +91,14 @@ export default function AppRoot() {
 function Cooldown() {
   const [wants, setWants] = useState(null);
   const [goal, setGoal] = useState({ name: "Savings goal", target: 500 });
+  const [profile, setProfile] = useState(null);
   const [tab, setTab] = useState("home");
   const [now, setNow] = useState(Date.now());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmBuy, setConfirmBuy] = useState(null);
   const [editGoal, setEditGoal] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [toast, setToast] = useState("");
   const loadedGoal = useRef(false);
   const toastTimer = useRef(null);
@@ -97,7 +116,20 @@ function Cooldown() {
       if (!loadedGoal.current) { setGoal(g); loadedGoal.current = true; }
     } catch (e) {
       console.error(e);
-      setWants([]);
+      setWants((prev) => prev ?? []);
+    }
+    try {
+      const p = await store.ensureProfile();
+      setProfile(p);
+    } catch (e) {
+      console.error(e);
+      setProfile((prev) => prev ?? {
+        displayName: "",
+        username: "",
+        bio: "",
+        visibility: store.VISIBILITY.private,
+        shareToken: "",
+      });
     }
   }, []);
 
@@ -203,10 +235,16 @@ function Cooldown() {
               <div className="brand-sub">Wait first. Buy later, if ever.</div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             {ready.length > 0 && (
               <button className="btn-pill" onClick={() => setTab("shelf")}>{ready.length} ready</button>
             )}
+            <Link to="/registry" className="btn-ghost" aria-label="Registry" title="Public registry">
+              <Compass size={17} />
+            </Link>
+            <button className="btn-ghost" onClick={() => setSettingsOpen(true)} aria-label="Shelf settings" title="Shelf settings">
+              <Settings2 size={17} />
+            </button>
             <button className="btn-ghost" onClick={() => supabase.auth.signOut()} aria-label="Sign out" title="Sign out">
               <LogOut size={17} />
             </button>
@@ -277,6 +315,13 @@ function Cooldown() {
       )}
       {editGoal && (
         <GoalSheet goal={goal} onClose={() => setEditGoal(false)} onSave={onSaveGoal} />
+      )}
+      {settingsOpen && profile && (
+        <SettingsSheet
+          profile={profile}
+          onClose={() => setSettingsOpen(false)}
+          onSaved={(p) => { setProfile(p); showToast("Shelf settings saved"); }}
+        />
       )}
       {toast && <div className="toast">{toast}</div>}
     </div>

@@ -1,82 +1,110 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { X, Copy, Check, RefreshCw, Globe2, Link2, Lock, Compass } from "lucide-react";
+import { X, Copy, Check, RefreshCw, Compass, Plus, Trash2 } from "lucide-react";
 import * as store from "./store";
 
-const OPTIONS = [
-  {
-    id: store.VISIBILITY.private,
-    title: "Private",
-    blurb: "Only you can see your shelf. Nothing is listed or linkable.",
-    icon: Lock,
-  },
-  {
-    id: store.VISIBILITY.shareable,
-    title: "Shareable",
-    blurb: "Anyone with your secret link can view a read-only shelf. Not listed in the registry.",
-    icon: Link2,
-  },
-  {
-    id: store.VISIBILITY.public,
-    title: "Public",
-    blurb: "Listed in the registry and open at /u/yourname. Great for accountability.",
-    icon: Globe2,
-  },
+const VIS_OPTS = [
+  { id: store.VISIBILITY.private, title: "Private", blurb: "Only you" },
+  { id: store.VISIBILITY.shareable, title: "Shareable", blurb: "Secret link" },
+  { id: store.VISIBILITY.public, title: "Public", blurb: "In the registry" },
 ];
 
-export default function SettingsSheet({ profile, onClose, onSaved }) {
-  const [displayName, setDisplayName] = useState(profile.displayName || "");
-  const [username, setUsername] = useState(profile.username || "");
-  const [bio, setBio] = useState(profile.bio || "");
-  const [visibility, setVisibility] = useState(profile.visibility || store.VISIBILITY.private);
-  const [shareToken, setShareToken] = useState(profile.shareToken);
+export default function SettingsSheet({
+  profile,
+  shelves,
+  activeShelfId,
+  onClose,
+  onSavedProfile,
+  onShelvesChange,
+  onSelectShelf,
+}) {
+  const [tab, setTab] = useState("shelves");
+  const [displayName, setDisplayName] = useState(profile?.displayName || "");
+  const [username, setUsername] = useState(profile?.username || "");
+  const [bio, setBio] = useState(profile?.bio || "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [copied, setCopied] = useState("");
-
-  const shareLink = shareToken ? `${window.location.origin}/s/${shareToken}` : "";
-  const publicLink = username ? `${window.location.origin}/u/${username.trim().toLowerCase()}` : "";
+  const [newName, setNewName] = useState("");
+  const [newVis, setNewVis] = useState(store.VISIBILITY.private);
 
   const copy = async (text, key) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(key);
-      setTimeout(() => setCopied(""), 1800);
+      setTimeout(() => setCopied(""), 1600);
     } catch {
-      setMsg("Couldn’t copy — select the link and copy manually.");
+      setMsg("Couldn’t copy — select the link manually.");
     }
   };
 
-  const save = async () => {
+  const saveProfile = async () => {
     setBusy(true);
     setMsg("");
     try {
-      const saved = await store.saveProfile({
-        displayName,
-        username,
-        bio,
-        visibility,
-      });
-      setShareToken(saved.shareToken);
-      setUsername(saved.username || "");
-      onSaved(saved);
-      setMsg("Saved.");
+      const saved = await store.saveProfile({ displayName, username, bio });
+      onSavedProfile(saved);
+      setMsg("Profile saved.");
     } catch (e) {
-      setMsg(e.message || "Couldn’t save settings.");
+      setMsg(e.message || "Couldn’t save profile.");
     }
     setBusy(false);
   };
 
-  const rotate = async () => {
+  const createShelf = async () => {
     setBusy(true);
     setMsg("");
     try {
-      const saved = await store.regenerateShareToken();
-      setShareToken(saved.shareToken);
-      onSaved(saved);
-      setMsg("New share link created. The old one no longer works.");
+      const shelf = await store.createShelf({ name: newName, visibility: newVis });
+      onShelvesChange([shelf, ...shelves]);
+      onSelectShelf?.(shelf.id);
+      setNewName("");
+      setMsg("Shelf created.");
+    } catch (e) {
+      setMsg(e.message || "Couldn’t create shelf.");
+    }
+    setBusy(false);
+  };
+
+  const patchShelf = async (id, fields) => {
+    setBusy(true);
+    setMsg("");
+    try {
+      const updated = await store.updateShelf(id, fields);
+      onShelvesChange(shelves.map((s) => (s.id === id ? updated : s)));
+    } catch (e) {
+      setMsg(e.message || "Couldn’t update shelf.");
+    }
+    setBusy(false);
+  };
+
+  const rotate = async (id) => {
+    setBusy(true);
+    try {
+      const updated = await store.regenerateShelfShareToken(id);
+      onShelvesChange(shelves.map((s) => (s.id === id ? updated : s)));
+      setMsg("New share link created.");
     } catch (e) {
       setMsg(e.message || "Couldn’t regenerate link.");
+    }
+    setBusy(false);
+  };
+
+  const remove = async (id) => {
+    if (shelves.length <= 1) {
+      setMsg("Keep at least one shelf.");
+      return;
+    }
+    if (!confirm("Delete this shelf and all items on it?")) return;
+    setBusy(true);
+    try {
+      await store.deleteShelf(id);
+      const next = shelves.filter((s) => s.id !== id);
+      onShelvesChange(next);
+      if (activeShelfId === id) onSelectShelf?.(next[0]?.id);
+      setMsg("Shelf deleted.");
+    } catch (e) {
+      setMsg(e.message || "Couldn’t delete shelf.");
     }
     setBusy(false);
   };
@@ -84,104 +112,139 @@ export default function SettingsSheet({ profile, onClose, onSaved }) {
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <h2 style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: 22, margin: 0, letterSpacing: "-.02em" }}>
-            Shelf settings
+            Settings
           </h2>
           <button className="btn-ghost" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
-        <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 18px", lineHeight: 1.45 }}>
-          Control who can see your shelf — keep it private, share a secret link, or list it in the public registry.
-        </p>
 
-        {msg && <div className="auth-msg" style={{ marginBottom: 14 }}>{msg}</div>}
+        <div className="filter-bar" style={{ marginBottom: 14 }}>
+          <button className={`filter-chip${tab === "shelves" ? " on" : ""}`} onClick={() => setTab("shelves")}>Shelves</button>
+          <button className={`filter-chip${tab === "profile" ? " on" : ""}`} onClick={() => setTab("profile")}>Profile</button>
+        </div>
 
-        <Field label="Display name">
-          <input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" />
-        </Field>
+        {msg && <div className="auth-msg">{msg}</div>}
 
-        <Field label="Username">
-          <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: 14, top: 13, color: "var(--muted)", fontWeight: 700 }}>@</span>
-            <input
-              className="input"
-              style={{ paddingLeft: 30 }}
-              value={username}
-              autoCapitalize="off"
-              autoCorrect="off"
-              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-              placeholder="yourname"
-            />
-          </div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>
-            3–24 characters. Required for public shelves.
-          </div>
-        </Field>
+        {tab === "shelves" ? (
+          <>
+            <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.45 }}>
+              Each shelf is its own wishlist. Set visibility when you create it — private, shareable link, or public in the registry.
+            </p>
 
-        <Field label="Bio (optional)">
-          <textarea
-            className="input"
-            rows={2}
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder="Waiting on fewer impulse buys…"
-            style={{ resize: "vertical", minHeight: 64 }}
-          />
-        </Field>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 18 }}>
+              {shelves.map((s) => {
+                const shareLink = store.shelfShareUrl(s);
+                const publicLink = store.shelfPublicUrl(s);
+                return (
+                  <div key={s.id} className="card" style={{ padding: 14 }}>
+                    <input
+                      className="input"
+                      value={s.name}
+                      onChange={(e) => onShelvesChange(shelves.map((x) => (x.id === s.id ? { ...x, name: e.target.value } : x)))}
+                      onBlur={(e) => patchShelf(s.id, { name: e.target.value })}
+                    />
+                    <div className="chip-wrap" style={{ marginTop: 10 }}>
+                      {VIS_OPTS.map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          className={`chip${s.visibility === o.id ? " on" : ""}`}
+                          onClick={() => patchShelf(s.id, { visibility: o.id })}
+                        >
+                          {o.title}
+                        </button>
+                      ))}
+                    </div>
 
-        <Field label="Visibility">
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {OPTIONS.map((o) => {
-              const Icon = o.icon;
-              const on = visibility === o.id;
-              return (
-                <button
-                  key={o.id}
-                  type="button"
-                  className={`visibility-option${on ? " on" : ""}`}
-                  onClick={() => setVisibility(o.id)}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <Icon size={16} />
-                    <span style={{ fontWeight: 700, fontSize: 14.5 }}>{o.title}</span>
+                    {(s.visibility === store.VISIBILITY.shareable || s.visibility === store.VISIBILITY.public) && (
+                      <div className="share-row" style={{ marginTop: 10 }}>
+                        <input className="input" readOnly value={shareLink} />
+                        <button className="btn-small-add" type="button" onClick={() => copy(shareLink, s.id)}>
+                          {copied === s.id ? <Check size={15} /> : <Copy size={15} />}
+                        </button>
+                      </div>
+                    )}
+                    {s.visibility === store.VISIBILITY.public && (
+                      <div className="share-row" style={{ marginTop: 8 }}>
+                        <input className="input" readOnly value={publicLink} />
+                        <button className="btn-small-add" type="button" onClick={() => copy(publicLink, `p-${s.id}`)}>
+                          {copied === `p-${s.id}` ? <Check size={15} /> : <Copy size={15} />}
+                        </button>
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+                      {(s.visibility === store.VISIBILITY.shareable || s.visibility === store.VISIBILITY.public) && (
+                        <button className="btn-link" type="button" onClick={() => rotate(s.id)} disabled={busy}>
+                          <RefreshCw size={13} /> Regenerate link
+                        </button>
+                      )}
+                      <button className="btn-ghost" type="button" onClick={() => remove(s.id)} aria-label="Delete shelf" style={{ marginLeft: "auto" }}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12.5, lineHeight: 1.4, opacity: .85, textAlign: "left" }}>{o.blurb}</div>
-                </button>
-              );
-            })}
-          </div>
-        </Field>
+                );
+              })}
+            </div>
 
-        {(visibility === store.VISIBILITY.shareable || visibility === store.VISIBILITY.public) && (
-          <Field label="Share link">
-            <div className="share-row">
-              <input className="input" readOnly value={shareLink} />
-              <button className="btn-small-add" type="button" onClick={() => copy(shareLink, "share")} disabled={!shareLink}>
-                {copied === "share" ? <Check size={15} /> : <Copy size={15} />}
-                {copied === "share" ? "Copied" : "Copy"}
+            <div className="card" style={{ padding: 14 }}>
+              <div style={{ fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                <Plus size={15} /> New shelf
+              </div>
+              <input
+                className="input"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder={store.defaultShelfName()}
+              />
+              <div className="chip-wrap" style={{ marginTop: 10 }}>
+                {VIS_OPTS.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    className={`chip${newVis === o.id ? " on" : ""}`}
+                    onClick={() => setNewVis(o.id)}
+                  >
+                    {o.title}
+                  </button>
+                ))}
+              </div>
+              <button className="btn-primary" style={{ marginTop: 12 }} onClick={createShelf} disabled={busy}>
+                Create shelf
               </button>
             </div>
-            <button className="btn-link" type="button" onClick={rotate} disabled={busy} style={{ marginTop: 8 }}>
-              <RefreshCw size={13} /> Regenerate link
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.45 }}>
+              Your public name on shared shelves and the registry. Visibility is set per shelf, not on your account.
+            </p>
+            <Field label="Display name">
+              <input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            </Field>
+            <Field label="Username">
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 14, top: 13, color: "var(--muted)", fontWeight: 700 }}>@</span>
+                <input
+                  className="input"
+                  style={{ paddingLeft: 30 }}
+                  value={username}
+                  autoCapitalize="off"
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                  placeholder="yourname"
+                />
+              </div>
+            </Field>
+            <Field label="Bio">
+              <textarea className="input" rows={2} value={bio} onChange={(e) => setBio(e.target.value)} style={{ resize: "vertical" }} />
+            </Field>
+            <button className="btn-primary" onClick={saveProfile} disabled={busy}>
+              {busy ? "Saving…" : "Save profile"}
             </button>
-          </Field>
+          </>
         )}
-
-        {visibility === store.VISIBILITY.public && (
-          <Field label="Public profile URL">
-            <div className="share-row">
-              <input className="input" readOnly value={publicLink || "Save a username first"} />
-              <button className="btn-small-add" type="button" onClick={() => copy(publicLink, "public")} disabled={!publicLink}>
-                {copied === "public" ? <Check size={15} /> : <Copy size={15} />}
-                {copied === "public" ? "Copied" : "Copy"}
-              </button>
-            </div>
-          </Field>
-        )}
-
-        <button className="btn-primary" onClick={save} disabled={busy} style={{ marginTop: 4 }}>
-          {busy ? "Saving…" : "Save settings"}
-        </button>
 
         <Link
           to="/registry"

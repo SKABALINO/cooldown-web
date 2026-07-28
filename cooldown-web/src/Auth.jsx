@@ -49,8 +49,8 @@ export default function Auth() {
         <h1 className="auth-h">{mode === "signup" ? "Create your account" : "Welcome back"}</h1>
         <p className="auth-p">
           {mode === "signup"
-            ? "Your shelf syncs across devices — keep it private, share a link, or go public."
-            : "Sign in to reach your shelf from anywhere."}
+            ? "Create shelves like wishlists — keep them private, share a link, or list them publicly."
+            : "Sign in to reach your shelves from anywhere."}
         </p>
 
         {msg && <div className="auth-msg">{msg}</div>}

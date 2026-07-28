@@ -596,3 +596,202 @@ a.btn-ghost {
 }
 a.btn-ghost:hover { background: rgba(19, 35, 31, 0.05); color: var(--ink); }
 
+.shelf-switcher {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 16px 8px;
+}
+.shelf-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,.72);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--body);
+}
+.shelf-chip.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.shelf-vis {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  opacity: .7;
+}
+
+.url-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #eef2f1;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+}
+.url-bar a {
+  color: var(--ink);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-details-grid {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 420px) {
+  .item-details-grid { grid-template-columns: 1fr; }
+}
+.item-image-panel {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ecefe9;
+  border: 1px solid var(--line);
+}
+.item-image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.item-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #9aa79f;
+}
+.image-edit-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  border: none;
+  background: #fff;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(19,35,31,.12);
+}
+.item-fields .field-label,
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.item-fields .input { margin-bottom: 12px; }
+.price-qty-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.qty-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  height: 46px;
+  padding: 0 6px;
+}
+.qty-stepper button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: #f2f5f3;
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.qty-stepper span { font-weight: 700; min-width: 20px; text-align: center; }
+.select-input {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 20px, calc(100% - 12px) 20px;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+.toggle-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+.toggle-block {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--body);
+  color: var(--ink);
+}
+.toggle-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  line-height: 1.25;
+  min-height: 28px;
+}
+.toggle-switch {
+  display: block;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #d8e0dc;
+  position: relative;
+  transition: background .15s ease;
+}
+.toggle-switch.on { background: var(--jade); }
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+.toggle-switch.on .toggle-knob { transform: translateX(18px); }
+.new-shelf-box {
+  background: #f3f7f5;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.add-sheet { max-height: 94vh; }
+
+

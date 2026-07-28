@@ -22,10 +22,12 @@ There is no separate lint or unit-test setup in this repo (no lint/test scripts 
   stack: URL `http://127.0.0.1:54321` and the anon key printed by `supabase start`
   (also retrievable via `supabase status`). Vite only reads `.env` at startup — restart
   `npm run dev` after editing it.
-- Local Supabase requires Docker. The dockerd in this VM must be started manually and its
-  socket opened for the `ubuntu` user (see the update-script / one-time setup). If
-  `supabase start` reports a docker-socket permission error, run
-  `sudo chmod 666 /var/run/docker.sock`.
+- Local Supabase requires Docker, which is pre-installed in the VM snapshot but the daemon
+  is not auto-started. Start it once per session before `supabase start`:
+  `sudo dockerd > /tmp/dockerd.log 2>&1 &` then `sudo chmod 666 /var/run/docker.sock`
+  (the chmod lets the `ubuntu` user — and the Supabase CLI — reach the docker socket).
+  Docker 29 is configured with the `fuse-overlayfs` storage driver and
+  `containerd-snapshotter` disabled (see `/etc/docker/daemon.json`); do not change this.
 - The repo's `supabase/migrations/002_shelf_visibility.sql` is an *incremental* migration
   that assumes `schema.sql` was already applied (it references the `wants` table that only
   `schema.sql` creates), so a plain `supabase start` against an empty DB fails. To make

@@ -63,8 +63,10 @@ export default function AddItemFlow({
       setStep("details");
       if (!preview.name && preview.price == null && !preview.image) {
         setMsg("Couldn’t auto-fill much from that page — enter the title and price.");
+      } else if (preview.price == null && preview.image) {
+        setMsg("Loaded title and image. Stores often hide price — add it to finish.");
       } else if (preview.price == null) {
-        setMsg("Title/image loaded. Add the price to finish.");
+        setMsg("Some details loaded. Add the price (and image if missing) to finish.");
       }
     } catch (e) {
       setStep("details");

@@ -1,35 +1,8 @@
--- Cooldown — database schema
--- Run this once in your Supabase project: Dashboard → SQL Editor → New query → paste → Run.
--- If you already ran an older schema, also run supabase/migrations/002_shelf_visibility.sql
+-- Migration: shelf visibility, profiles, share links, public registry
+-- Run in Supabase SQL Editor if you already applied an older schema.sql
 
 create extension if not exists pgcrypto;
 
--- Each parked want belongs to one user.
-create table if not exists public.wants (
-  id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  name       text not null,
-  price      numeric not null default 0,
-  category   text not null default 'Other',
-  note       text default '',
-  link       text default '',
-  image      text default '',
-  added_at   timestamptz not null default now(),
-  cool_until timestamptz not null,
-  status     text not null default 'cooling',   -- cooling | letgo | bought
-  decided_at timestamptz,
-  created_at timestamptz not null default now()
-);
-
--- One savings goal per user.
-create table if not exists public.goals (
-  user_id    uuid primary key default auth.uid() references auth.users(id) on delete cascade,
-  name       text not null default 'Savings goal',
-  target     numeric not null default 500,
-  updated_at timestamptz not null default now()
-);
-
--- Public identity + shelf visibility for sharing / registry.
 create table if not exists public.profiles (
   user_id          uuid primary key default auth.uid() references auth.users(id) on delete cascade,
   display_name     text not null default '',
@@ -53,18 +26,7 @@ create index if not exists profiles_public_idx
   on public.profiles (updated_at desc)
   where shelf_visibility = 'public' and username is not null;
 
--- Row-level security
-alter table public.wants enable row level security;
-alter table public.goals enable row level security;
 alter table public.profiles enable row level security;
-
-drop policy if exists "own wants" on public.wants;
-create policy "own wants" on public.wants
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-drop policy if exists "own goal" on public.goals;
-create policy "own goal" on public.goals
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles
@@ -74,23 +36,16 @@ drop policy if exists "read public profiles" on public.profiles;
 create policy "read public profiles" on public.profiles
   for select using (shelf_visibility = 'public');
 
--- Explicit grants (required for the auto REST API on projects created after 2026-05-30).
 grant usage on schema public to anon, authenticated;
-grant all on public.wants to authenticated;
-grant all on public.goals to authenticated;
 grant all on public.profiles to authenticated;
 grant select on public.profiles to anon;
 
-create index if not exists wants_user_idx on public.wants (user_id, added_at desc);
+-- Backfill profiles for existing users
+insert into public.profiles (user_id, display_name)
+select id, coalesce(split_part(email, '@', 1), 'Cooldowner')
+from auth.users
+on conflict (user_id) do nothing;
 
--- Live sync for the extension ↔ web app.
-do $$
-begin
-  alter publication supabase_realtime add table public.wants;
-exception when duplicate_object then null;
-end $$;
-
--- Auto-create a profile when a user signs up.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -113,7 +68,6 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Shared shelf JSON builder (no private notes).
 create or replace function public._shelf_payload(p profiles)
 returns json
 language plpgsql
@@ -192,7 +146,6 @@ begin
 end;
 $$;
 
--- Share link access: shareable OR public shelves via secret token.
 create or replace function public.get_shared_shelf(p_token uuid)
 returns json
 language plpgsql
@@ -214,7 +167,6 @@ begin
 end;
 $$;
 
--- Public vanity URL: /u/:username
 create or replace function public.get_public_shelf(p_username text)
 returns json
 language plpgsql
@@ -236,7 +188,6 @@ begin
 end;
 $$;
 
--- Registry of public shelves.
 create or replace function public.list_public_shelves()
 returns json
 language sql

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import {
-  X, Link as LinkIcon, Gift, Pencil, Minus, Plus, Eye,
+  X, Link as LinkIcon, Gift, Pencil, Minus, Plus, Eye, Loader2,
 } from "lucide-react";
 import * as store from "./store";
+import { fetchLinkPreview } from "./linkPreview";
 
 function normalizeUrl(u) {
   const s = (u || "").trim();
@@ -12,7 +13,7 @@ function normalizeUrl(u) {
 
 /**
  * Two-step add flow:
- * 1) Paste URL → View item
+ * 1) Paste URL → View item (fetches title/image when possible)
  * 2) Item details (title, price, qty, shelf, toggles)
  */
 export default function AddItemFlow({
@@ -39,12 +40,13 @@ export default function AddItemFlow({
   const [newShelfName, setNewShelfName] = useState("");
   const [newShelfVisibility, setNewShelfVisibility] = useState(store.VISIBILITY.private);
   const [busy, setBusy] = useState(false);
+  const [fetching, setFetching] = useState(false);
   const [msg, setMsg] = useState("");
 
   const p = parseFloat(price) || 0;
   const valid = name.trim() && p > 0 && shelfId;
 
-  const goDetails = () => {
+  const goDetails = async () => {
     const normalized = normalizeUrl(url);
     if (!normalized) {
       setMsg("Paste a product URL first.");
@@ -52,7 +54,23 @@ export default function AddItemFlow({
     }
     setUrl(normalized);
     setMsg("");
-    setStep("details");
+    setFetching(true);
+    try {
+      const preview = await fetchLinkPreview(normalized);
+      if (preview.name && !name.trim()) setName(preview.name);
+      if (preview.image && !image.trim()) setImage(preview.image);
+      if (preview.price != null && !price.trim()) setPrice(String(preview.price));
+      setStep("details");
+      if (!preview.name && preview.price == null && !preview.image) {
+        setMsg("Couldn’t auto-fill much from that page — enter the title and price.");
+      } else if (preview.price == null) {
+        setMsg("Title/image loaded. Add the price to finish.");
+      }
+    } catch (e) {
+      setStep("details");
+      setMsg(e.message || "Couldn’t look up that link. Fill in the details manually.");
+    }
+    setFetching(false);
   };
 
   const bumpQty = (delta) => setQuantity((q) => Math.max(1, (Number(q) || 1) + delta));
@@ -110,7 +128,7 @@ export default function AddItemFlow({
         {step === "url" ? (
           <>
             <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 16px", lineHeight: 1.45 }}>
-              Paste a product URL. We’ll open the details form so you can finish adding it to a shelf.
+              Paste a product URL. We’ll try to pull the title and image, then you can confirm price and shelf.
             </p>
             {msg && <div className="auth-msg">{msg}</div>}
             <div style={{ position: "relative", marginBottom: 14 }}>
@@ -125,20 +143,24 @@ export default function AddItemFlow({
                 autoCorrect="off"
                 placeholder="https://…"
                 onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") goDetails(); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && !fetching) goDetails(); }}
+                disabled={fetching}
               />
             </div>
             <button
               className="btn-primary"
               onClick={goDetails}
+              disabled={fetching}
               style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
-              <Eye size={17} /> View item
+              {fetching ? <Loader2 size={17} className="spin" /> : <Eye size={17} />}
+              {fetching ? "Looking up item…" : "View item"}
             </button>
             <button
               className="btn-link"
               style={{ width: "100%", justifyContent: "center", marginTop: 14 }}
               onClick={() => { setStep("details"); setMsg(""); }}
+              disabled={fetching}
             >
               Or add without a link
             </button>
@@ -147,7 +169,7 @@ export default function AddItemFlow({
           <>
             <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.45 }}>
               {url
-                ? "Some details may be missing. Add a title and price to finish adding this item to your shelf."
+                ? "Confirm the details, add a price if needed, and pick which shelf this belongs on."
                 : "Add a title and price, then pick which shelf it belongs on."}
             </p>
             {msg && <div className="auth-msg">{msg}</div>}

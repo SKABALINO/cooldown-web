@@ -794,4 +794,10 @@ a.btn-ghost:hover { background: rgba(19, 35, 31, 0.05); color: var(--ink); }
 }
 .add-sheet { max-height: 94vh; }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin .8s linear infinite; }
+
+
 

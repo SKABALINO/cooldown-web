@@ -1,7 +1,45 @@
 -- Migration: multi-shelf wishlists with per-shelf visibility
--- Run in Supabase SQL Editor after 002_shelf_visibility.sql (or on top of full schema.sql)
+-- Run in Supabase SQL Editor. Safe to re-run. Creates profiles if missing.
 
 create extension if not exists pgcrypto;
+
+-- -------- profiles (needed for shared shelf owner info) --------
+create table if not exists public.profiles (
+  user_id          uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  display_name     text not null default '',
+  username         text unique,
+  bio              text not null default '',
+  shelf_visibility text not null default 'private'
+                   check (shelf_visibility in ('private', 'shareable', 'public')),
+  share_token      uuid not null default gen_random_uuid(),
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  constraint profiles_username_format check (
+    username is null or username ~ '^[a-z0-9_]{3,24}$'
+  ),
+  constraint profiles_public_needs_username check (
+    shelf_visibility <> 'public' or username is not null
+  )
+);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "own profile" on public.profiles;
+create policy "own profile" on public.profiles
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "read public profiles" on public.profiles;
+create policy "read public profiles" on public.profiles
+  for select using (shelf_visibility = 'public');
+
+grant usage on schema public to anon, authenticated;
+grant all on public.profiles to authenticated;
+grant select on public.profiles to anon;
+
+insert into public.profiles (user_id, display_name)
+select id, coalesce(split_part(email, '@', 1), 'Cooldowner')
+from auth.users
+on conflict (user_id) do nothing;
 
 -- -------- shelves (wishlists) --------
 create table if not exists public.shelves (
@@ -166,8 +204,6 @@ begin
 end;
 $$;
 
--- Public shelf by owner username + shelf id or name slug is awkward;
--- public shelves are listed in registry and opened by share token OR by shelf id for public ones.
 create or replace function public.get_public_shelf_by_id(p_shelf_id uuid)
 returns json
 language plpgsql
@@ -186,8 +222,6 @@ begin
 end;
 $$;
 
--- Keep username route as "owner's public shelves list" helper via registry;
--- get_public_shelf(username) now returns that user's public shelves summary + first shelf payload if any.
 create or replace function public.get_public_shelf(p_username text)
 returns json
 language plpgsql
